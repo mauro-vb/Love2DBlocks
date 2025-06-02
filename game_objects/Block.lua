@@ -1,7 +1,10 @@
+local tween = require "libraries.tween"
+local config = require "game.config"
+
 local Block =  {}
 Block.__index = Block
 
-function Block.new(positions, opts)
+function Block.new(positions, grid, opts)
     opts = opts or {}
     local self = setmetatable({}, Block) 
     
@@ -9,31 +12,48 @@ function Block.new(positions, opts)
     self.positions = positions or {}
     self.allowedDirections = opts.allowedDirections or {horizontal=true, vertical=true}
     self.effects = opts.effects or {}
-    self.grid = opts.grid or nil
+    self.grid = grid or nil
+    self.collidable = opts.collidable or true
+    self.tweens = {}
     if self.grid then
-        self:place_on(self.grid)
+        self:place_on_grid()
     end
+
+    for _, effect in ipairs(self.effects) do
+        effect:apply(self)
+    end
+    for _, pos in ipairs(self.positions) do
+        pos.drawX = (pos.x - 1) * (config.cellSize + config.cellSpacing)
+        pos.drawY = (pos.y - 1) * (config.cellSize + config.cellSpacing)
+    end
+
     return self
 end
 
-function Block:place_on(grid)
-    self.grid = grid
-    for _, pos in ipairs(self.positions) do
-        local cell = grid:get(pos.x, pos.y)
+function Block:place_on_grid(oldPositions)
+    for i, pos in ipairs(self.positions) do
+        local cell = self.grid:get(pos.x, pos.y)
         if cell then
-            cell.occupant = self
+            local old = oldPositions and oldPositions[i]
+            local dx, dy = 0, 0
+            if old then
+                dx = old.x - pos.x
+                dy = old.y - pos.y
+            end
+            cell:block_entered({ block = self, dx = dx, dy = dy })
         end
     end
 end
 
-function Block:clear_from(grid)
-    for _, pos in ipairs(self.positions) do
-        local cell = grid:get(pos.x, pos.y)
-        if cell and cell.occupant == self then
-            cell.occupant = nil
+function Block:clear_from_grid(dx, dy)
+    for i, pos in ipairs(self.positions) do
+        local cell = self.grid:get(pos.x, pos.y)
+        if cell then
+            cell:block_exited({ block = self, dx = dx, dy = dy })
         end
     end
 end
+
 
 function Block:is_on(x, y)
     for _, pos in ipairs(self.positions) do
@@ -44,45 +64,106 @@ function Block:is_on(x, y)
     return false
 end
 
-function Block:can_move(grid, dx, dy)
+function Block:can_move(dx, dy)
     -- Look for modifyCanMove
     for _, effect in ipairs(self.effects) do
         if effect.modifyCanMove then
-            return effect:modifyCanMove(grid, dx, dy)
+            return effect:modifyCanMove(dx, dy)
         end
     end
     -- Default check
     for _, pos in ipairs(self.positions) do
         local x, y = pos.x + dx, pos.y + dy
-        local cell = grid:get(x, y)
-        if not cell or not cell.active or cell.occupant then
+        local cell = self.grid:get(x, y)
+        
+        if not cell or not cell.active then
             return false
         end
+        for _, occupant in ipairs(cell.occupants) do
+            if occupant ~= self then
+                if occupant.collidable then
+                    return false
+                end
+            end
+        end
+
     end
     return true
 end
 
-function Block:move(grid, dx, dy)
+function Block:move(dx, dy)
     dx = self.allowedDirections.horizontal and dx or 0
     dy = self.allowedDirections.vertical and dy or 0
-    self:clear_from(grid)
-    if self:can_move(grid, dx, dy) then
-        for _, pos in ipairs(self.positions) do
+    self:clear_from_grid(dx, dy)
+    if self:can_move(dx, dy) then
+        local oldPositions = {}
+        for i, pos in ipairs(self.positions) do
+            oldPositions[i] = {x = pos.x, y = pos.y}
+
             pos.x = pos.x + dx
             pos.y = pos.y + dy
+
+            local targetDrawX = (pos.x - 1) * (config.cellSize + config.cellSpacing)
+            local targetDrawY = (pos.y - 1) * (config.cellSize + config.cellSpacing)
+            local tweenX = tween.new(0.075, pos, { drawX = targetDrawX }, tween.easing.inOutCirc)
+            local tweenY = tween.new(0.075, pos, { drawY = targetDrawY }, tween.easing.inOutCirc)
+            table.insert(self.tweens, tweenX)
+            table.insert(self.tweens, tweenY)
+        end
+        self:place_on_grid(oldPositions)
+    end
+end
+
+
+function Block:get_mask()
+    local minX, minY = math.huge, math.huge
+    for _, pos in ipairs(self.positions) do
+        if pos.x < minX then minX = pos.x end
+        if pos.y < minY then minY = pos.y end
+    end
+
+    local mask = {}
+    for _, pos in ipairs(self.positions) do
+        local relX = pos.x - minX + 1
+        local relY = pos.y - minY + 1
+        mask[relY] = mask[relY] or {}
+        mask[relY][relX] = true
+    end
+
+    return mask, minX, minY
+end
+
+function Block:remove_effect(effect)
+    for i = #self.effects, 1, -1 do
+        if self.effects[i] == effect then
+            table.remove(self.effects, i)
         end
     end
-    self:place_on(grid)
 end
 
-function Block:draw(cellSize, spacing)
-    love.graphics.setColor(1, 0, 0)
 
-    for _, pos in ipairs(self.positions) do
-        local drawX = (pos.x - 1) * (cellSize + spacing)
-        local drawY = (pos.y - 1) * (cellSize + spacing)
-        love.graphics.rectangle("fill", drawX, drawY, cellSize, cellSize)
+function Block:update(dt)
+    for i = #self.tweens, 1, -1 do
+        local tween = self.tweens[i]
+        local complete = tween:update(dt)
+        if complete then
+            table.remove(self.tweens, i)
+        end
     end
 end
+
+
+
+function Block:draw(cellSize, spacing)
+    for _, pos in ipairs(self.positions) do
+        love.graphics.setColor(1, 0, 0)
+        love.graphics.rectangle("fill", pos.drawX, pos.drawY, cellSize, cellSize)
+
+        for _, effect in ipairs(self.effects) do
+            effect:draw(pos.drawX, pos.drawY)
+        end
+    end
+end
+
 
 return Block

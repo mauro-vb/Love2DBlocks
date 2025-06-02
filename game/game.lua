@@ -4,6 +4,9 @@ local Grid = require "game_objects.Grid"
 local utils = require "game.utils"
 local config = require "game.config"
 
+local IgnorableBlockEffect = require "game_objects.block_effects.IgnorableBlockEffect"
+local ClearBlockEffectsEffect = require "game_objects.tile_effects.ClearBlockEffectsEffect"
+
 local Game = {}
 
 local MouseX, MouseY = 0, 0
@@ -13,22 +16,28 @@ local Blocks = {}
 local selectedBlock = nil
 local G = nil
 
+
 function Game.load()
     MouseX, MouseY = 0, 0
     G = Grid.new(6, 6)
+    table.insert(G:get(1,1).effects, ClearBlockEffectsEffect)
 
-    local b1 = Block.new({{x=2,y=4}, {x=3,y=4}, {x=4,y=4}},
-    {grid=G, allowedDirections = {horizontal=true, vertical=false}})
+    local b1 = Block.new({{x=2,y=4}, {x=3,y=4}, {x=4,y=4}}, G,
+    {allowedDirections = {horizontal=true, vertical=false}})
     table.insert(Blocks, b1)
 
-    local b2 = Block.new({{x=5,y=5}, {x=5,y=4},},
-    {grid=G, allowedDirections = {horizontal=true, vertical=true}})
+    local b2 = Block.new({{x=5,y=5}, {x=5,y=4}}, G,
+    {allowedDirections = {horizontal=true, vertical=true}, effects = {IgnorableBlockEffect}})
     table.insert(Blocks, b2)
 
 end
 
 function Game.update(dt)
     MouseX, MouseY = love.mouse.getPosition()
+    for _, block in ipairs(Blocks) do
+       block:update(dt)
+    end
+
 end
 
 function Game.draw()
@@ -82,7 +91,7 @@ function Game.mousemoved(x, y, dx, dy)
         end
 
         if moveX ~= 0 or moveY ~= 0 then
-            selectedBlock:move(G, moveX, moveY)
+            selectedBlock:move(moveX, moveY)
         end
     end
 end
