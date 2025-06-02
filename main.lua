@@ -1,12 +1,13 @@
---[[
-    Your love2d game start here
-]]
+local love = require "love"
 
---local love = require "love"
+local Game = require "game.game"
+
 love.graphics.setDefaultFilter('nearest', 'nearest')
 
+local currentMode = Game
+
 function love.load()
-    -- init something here ...
+    currentMode.load()
     love.window.setTitle('Hello love2d!')
 
     love.keyboard.keysPressed = {}
@@ -17,6 +18,7 @@ function love.resize(w, h)
 end
 
 function love.keypressed(key)
+    currentMode.keysPressed(key)
     if key == 'escape' then
         love.event.quit()
     end
@@ -29,13 +31,24 @@ function love.keyboard.wasPressed(key)
 end
 
 function love.update(dt)
-    -- change some values based on your actions
-
+    currentMode.update(dt)
     love.keyboard.keysPressed = {}
 end
 
 function love.draw()
-    -- draw your stuff here
-    love.graphics.print('Welcome to the Love2d world!', 10, 10)
+    currentMode.draw()
 end
 
+
+function love.mousepressed(x, y, button)
+    currentMode.mousepressed(x, y, button)
+end
+
+
+function love.mousereleased(x, y, button)
+    currentMode.mousereleased(x, y, button)
+end
+
+function love.mousemoved(x, y, dx, dy)
+    currentMode.mousemoved(x, y, dx, dy)
+end
