@@ -18,7 +18,6 @@ end
 
 function GridCell:trigger_effects(block)
     for _, effect in ipairs(self.effects) do
-        print(effect)
         effect:trigger(block)
     end
 end
@@ -29,6 +28,36 @@ function GridCell:remove_occupant(occupant)
             table.remove(self.occupants, i)
         end
     end
+end
+
+function GridCell:has_collidable()
+    for _, occupant in ipairs(self.occupants) do
+        if occupant.collidable then
+            return true
+        end
+    end
+    return false
+end
+
+function GridCell:has_occupant(test_occupant)
+    for _, occupant in ipairs(self.occupants) do
+        if occupant == test_occupant then
+            return true
+            
+        end
+    end
+    return false
+end
+
+function GridCell:has_other_collidable(block)
+    for _, occupant in ipairs(self.occupants) do
+        if occupant ~= block then
+            if occupant.collidable then
+                return true
+            end
+        end
+    end
+    return false
 end
 
 function GridCell:block_entered(info)
@@ -43,6 +72,8 @@ end
 
 function GridCell:draw(x, y, size)
     if self.active then
+        local a = self:has_collidable() and 1 or .6
+        love.graphics.setColor(1,1,1,a)
         love.graphics.rectangle("fill", x, y, size, size)
     end
 end

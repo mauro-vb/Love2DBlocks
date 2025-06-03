@@ -13,7 +13,7 @@ function Block.new(positions, grid, opts)
     self.allowedDirections = opts.allowedDirections or {horizontal=true, vertical=true}
     self.effects = opts.effects or {}
     self.grid = grid or nil
-    self.collidable = opts.collidable or true
+    self.collidable = opts.collidable ~= nil and opts.collidable or true
     self.tweens = {}
     if self.grid then
         self:place_on_grid()
@@ -30,17 +30,17 @@ function Block.new(positions, grid, opts)
     return self
 end
 
-function Block:place_on_grid(oldPositions)
+function Block:place_on_grid(dx, dy)
     for i, pos in ipairs(self.positions) do
         local cell = self.grid:get(pos.x, pos.y)
         if cell then
-            local old = oldPositions and oldPositions[i]
-            local dx, dy = 0, 0
-            if old then
-                dx = old.x - pos.x
-                dy = old.y - pos.y
-            end
             cell:block_entered({ block = self, dx = dx, dy = dy })
+        end
+    end
+    -- check for onPlacement
+    for _, effect in ipairs(self.effects) do
+        if effect.onPlacement then
+            effect:onPlacement(self, dx, dy)
         end
     end
 end
@@ -79,14 +79,10 @@ function Block:can_move(dx, dy)
         if not cell or not cell.active then
             return false
         end
-        for _, occupant in ipairs(cell.occupants) do
-            if occupant ~= self then
-                if occupant.collidable then
-                    return false
-                end
-            end
-        end
 
+        if cell:has_other_collidable(self) then
+            return false
+        end
     end
     return true
 end
@@ -94,12 +90,10 @@ end
 function Block:move(dx, dy)
     dx = self.allowedDirections.horizontal and dx or 0
     dy = self.allowedDirections.vertical and dy or 0
-    self:clear_from_grid(dx, dy)
-    if self:can_move(dx, dy) then
-        local oldPositions = {}
-        for i, pos in ipairs(self.positions) do
-            oldPositions[i] = {x = pos.x, y = pos.y}
 
+    if self:can_move(dx, dy) then
+        self:clear_from_grid(dx, dy)
+        for i, pos in ipairs(self.positions) do
             pos.x = pos.x + dx
             pos.y = pos.y + dy
 
@@ -110,7 +104,7 @@ function Block:move(dx, dy)
             table.insert(self.tweens, tweenX)
             table.insert(self.tweens, tweenY)
         end
-        self:place_on_grid(oldPositions)
+        self:place_on_grid(dx, dy)
     end
 end
 
@@ -156,7 +150,7 @@ end
 
 function Block:draw(cellSize, spacing)
     for _, pos in ipairs(self.positions) do
-        love.graphics.setColor(1, 0, 0)
+        love.graphics.setColor(1, 0, 0, .45)
         love.graphics.rectangle("fill", pos.drawX, pos.drawY, cellSize, cellSize)
 
         for _, effect in ipairs(self.effects) do
