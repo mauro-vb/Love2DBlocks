@@ -1,7 +1,28 @@
 local GridCell = require "game_objects.GridCell"
+local metatable_functions = require "metatable_functions"
 
 local Grid = {}
 Grid.__index = Grid
+Grid.__tostring = function(self)
+    local output = {"\n"}
+    for y = 1, self.height do
+        local row = {}
+        for x = 1, self.width do
+            local cell = self:get(x, y)
+            if not cell.active then
+                table.insert(row, " ")
+            elseif #cell.occupants ~= 0 then
+                table.insert(row, "■")
+            else
+                table.insert(row, "x")
+            end
+        end
+        table.insert(output, table.concat(row, " "))
+    end
+    table.insert(output, "\n")
+    return table.concat(output, "\n")
+end
+
 
 function Grid.new(width, height)
     local self = setmetatable({}, Grid)
@@ -15,7 +36,6 @@ function Grid.new(width, height)
             self.cells[x][y] = GridCell.new(x, y)
         end
     end
-
     return self
 end
 

@@ -1,8 +1,13 @@
 local tween = require "libraries.tween"
 local config = require "game.config"
+local metatable_functions = require "metatable_functions"
 
 local Block =  {}
+Block.name = "Block"
 Block.__index = Block
+Block.__tostring = function(self)
+    return metatable_functions.pretty_print(self, {"positions", "allowedDirections"})
+end
 
 function Block.new(positions, grid, opts)
     opts = opts or {}
@@ -20,13 +25,14 @@ function Block.new(positions, grid, opts)
     end
 
     for _, effect in ipairs(self.effects) do
-        effect:apply(self)
+        if effect.apply then
+            effect:apply(self)
+        end
     end
     for _, pos in ipairs(self.positions) do
         pos.drawX = (pos.x - 1) * (config.cellSize + config.cellSpacing)
         pos.drawY = (pos.y - 1) * (config.cellSize + config.cellSpacing)
     end
-
     return self
 end
 
@@ -150,11 +156,13 @@ end
 
 function Block:draw(cellSize, spacing)
     for _, pos in ipairs(self.positions) do
-        love.graphics.setColor(1, 0, 0, .45)
+        love.graphics.setColor(1, 0, .3, .45)
         love.graphics.rectangle("fill", pos.drawX, pos.drawY, cellSize, cellSize)
 
         for _, effect in ipairs(self.effects) do
-            effect:draw(pos.drawX, pos.drawY)
+            if effect.draw then
+                effect:draw(pos.drawX, pos.drawY)
+            end
         end
     end
 end

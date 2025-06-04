@@ -5,6 +5,7 @@ local utils = require "game.utils"
 local config = require "game.config"
 
 local IgnorableBlockEffect = require "game_objects.block_effects.IgnorableBlockEffect"
+local TileActivatingEffect = require "game_objects.block_effects.TileActivatingEffect"
 local ClearBlockEffectsEffect = require "game_objects.tile_effects.ClearBlockEffectsEffect"
 
 local Game = {}
@@ -27,7 +28,7 @@ function Game.load()
     table.insert(Blocks, b1)
 
     local b2 = Block.new({{x=5,y=5}, {x=5,y=4}}, G,
-    {allowedDirections = {horizontal=true, vertical=true}, effects = {IgnorableBlockEffect}})
+    {allowedDirections = {horizontal=true, vertical=true}, effects = {TileActivatingEffect.new("toggle","forward")}})
     table.insert(Blocks, b2)
 
 end
