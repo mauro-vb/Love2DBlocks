@@ -2,7 +2,7 @@ local utils = require "game.utils"
 local config = require "game.config"
 
 local MovementSystem = Concord.system({
-    blocks = {"blockShape", "position", "movable", "collidable"}
+    blocks = {"blockShape", "position", "movable", "collidable", "modifyMoveEffect"}
 })
 
 function MovementSystem:init(world)
@@ -61,7 +61,18 @@ function MovementSystem:mousemoved(x, y, dx, dy)
     end
 end
 
-function MovementSystem:can_move(block, dx, dy)
+function MovementSystem:canMove(block, dx, dy)
+    local directions = block.movable.allowedDirections
+    if (dx ~= 0 and not directions.horizontal) or (dy ~= 0 and not directions.vertical) then
+        return false
+    end
+    local moveEffect = block.modifyMoveEffect.effect or ""
+    if moveEffect == "pushEffect" then return self:pushEffect(block,dx,dy) end
+
+    return self:baseCanMove(block, dx, dy)
+end
+
+function MovementSystem:baseCanMove(block, dx, dy)
     for _, pos in ipairs(block.blockShape:getPositions(block.position)) do
         local x, y = pos.x + dx, pos.y + dy
         for _, other_block in ipairs(self.blocks) do
@@ -79,16 +90,33 @@ function MovementSystem:can_move(block, dx, dy)
     return true
 end
 
+function MovementSystem:pushEffect(block, dx, dy)
+    for _, pos in ipairs(block.blockShape:getPositions(block.position)) do
+        local x, y = pos.x + dx, pos.y + dy
+        for _, other_block in ipairs(self.blocks) do
+            if other_block ~= block and other_block.blockShape:isOn(other_block.position, {x = x, y = y}) then 
+                if other_block.collidable.active and self:canMove(other_block, dx, dy) then
+                    print(self:canMove(other_block, dx, dy))
+                    other_block:give("moveIntent", dx, dy)
+                    return true
+                end
+            end
+        end
+    end
+    return self:baseCanMove(block, dx, dy)
+end
+
+
 function MovementSystem:update(dt)
     for _, block in ipairs(self.blocks) do
         if block:has("moveIntent") then
             local move = block.moveIntent
-            local dx = block.movable.allowedDirections.horizontal and move.dx or 0
-            local dy = block.movable.allowedDirections.vertical and move.dy or 0
+            local dx = move.dx-- block.movable.allowedDirections.horizontal and move.dx or 0
+            local dy = move.dy---block.movable.allowedDirections.vertical and move.dy or 0
 
             if dx ~= 0 or dy ~= 0 then
                 
-                if self:can_move(block, dx, dy) then
+                if self:canMove(block, dx, dy) then
                     -- Apply the move
                     block.position.x = block.position.x + dx
                     block.position.y = block.position.y + dy
@@ -106,6 +134,7 @@ function MovementSystem:update(dt)
                 move.dx = 0
                 move.dy = 0
             end
+            block:remove("moveIntent")
         end
        
     end

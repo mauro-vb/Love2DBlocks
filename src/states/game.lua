@@ -24,12 +24,14 @@ function game:enter()
     :give("movable", {horizontal = true, vertical = true})
     :give("drawable", "rectangle", {1, 0, 0, 0.8})
     :give("collidable", true)
+    :give("modifyMoveEffect", "pushEffect")
   local block2 = Concord.entity(self.world)
     :give("position", 3, 4)
     :give("blockShape", {{x=0, y=0}, {x=1, y=0}})
     :give("movable", {horizontal = true, vertical = false})
     :give("drawable", "rectangle", {1, 0, 0, 0.8})
     :give("collidable", true)
+    :give("modifyMoveEffect", "pushEffect")
 
 end
 
