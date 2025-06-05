@@ -1,4 +1,4 @@
-local tween = require "libraries.tween"
+local tween = require "libs.tween"
 local config = require "game.config"
 local metatable_functions = require "metatable_functions"
 

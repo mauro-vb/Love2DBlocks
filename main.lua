@@ -1,54 +1,20 @@
 local love = require "love"
+local Gamestate = require 'libs.gamestate'
 
-local Game = require "game.game"
+Concord = require 'libs.concord'
 
+local game = require "src.states.game"
 love.graphics.setDefaultFilter('nearest', 'nearest')
+love.window.setMode(800, 600, {resizable=true})
 
-local currentMode = Game
+ECS = {
+  c = Concord.components,
+  a = {},
+  s = {}
+}
 
-function love.load()
-    currentMode.load()
-    love.window.setTitle('Hello love2d!')
+Concord.utils.loadNamespace("src/components")
+Concord.utils.loadNamespace("src/systems", ECS.s)
 
-    love.keyboard.keysPressed = {}
-end
-
-function love.resize(w, h)
-    -- ...
-end
-
-function love.keypressed(key)
-    currentMode.keysPressed(key)
-    if key == 'escape' then
-        love.event.quit()
-    end
-
-    love.keyboard.keysPressed[key] = true
-end
-
-function love.keyboard.wasPressed(key)
-    return love.keyboard.keysPressed[key]
-end
-
-function love.update(dt)
-    currentMode.update(dt)
-    love.keyboard.keysPressed = {}
-end
-
-function love.draw()
-    currentMode.draw()
-end
-
-
-function love.mousepressed(x, y, button)
-    currentMode.mousepressed(x, y, button)
-end
-
-
-function love.mousereleased(x, y, button)
-    currentMode.mousereleased(x, y, button)
-end
-
-function love.mousemoved(x, y, dx, dy)
-    currentMode.mousemoved(x, y, dx, dy)
-end
+Gamestate.registerEvents()
+Gamestate.switch(game)
